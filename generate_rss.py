@@ -27,12 +27,12 @@ for item in soup.select('.news-detail'):
     detail_href = BASE + link_tag['href']
     date_text = date_tag.get_text(strip=True)
 
-    # Try to get redirected PDF URL
+    # Follow redirect to actual PDF if it exists
     try:
-        detail_res = requests.get(detail_href, allow_redirects=True)
-        final_url = detail_res.url  # Will be cdn.ccsuniversity.ac.in if redirect happens
+        detail_res = requests.get(detail_href, allow_redirects=True, timeout=10)
+        final_url = detail_res.url if "cdn.ccsuniversity.ac.in" in detail_res.url else detail_href
     except:
-        final_url = detail_href  # Fallback to detail page if request fails
+        final_url = detail_href
 
     try:
         pub_date = datetime.strptime(date_text, '%d-%m-%Y')
