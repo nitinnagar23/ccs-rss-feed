@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
@@ -29,5 +30,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add ccs-feed.xml
-          git commit -m "Auto update RSS feed" || echo "No changes"
-          git push
+          git diff --cached --quiet || git commit -m "Auto update RSS feed"
+          git push https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
