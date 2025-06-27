@@ -22,10 +22,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install requests beautifulsoup4 feedgen
-      - name: Show downloaded HTML
-        run: cat page.html || echo "No HTML available"
-         
+          pip install requests beautifulsoup4 feedgen playwright
+          playwright install chromium
       - name: Run Script
         run: python generate_rss.py
 
