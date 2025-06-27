@@ -24,7 +24,8 @@ jobs:
         run: |
           pip install requests beautifulsoup4 feedgen
       - name: Show downloaded HTML
-         run: cat page.html || echo "No HTML available"
+        run: cat page.html || echo "No HTML available"
+         
       - name: Run Script
         run: python generate_rss.py
 
