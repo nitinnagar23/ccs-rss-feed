@@ -35,4 +35,22 @@ def fetch_pdf_links():
 
 def generate_rss():
     fg = FeedGenerator()
-    fg.title("CC
+    fg.title("CCSU News PDFs")
+    fg.link(href=URL, rel='alternate')
+    fg.description("Latest PDF-based notices from CCSU")
+    fg.language("en")
+    fg.lastBuildDate(datetime.now(timezone.utc))
+    fg.link(href="https://nitinnagar23.github.io/ccs-rss-feed/ccs-feed.xml", rel="self", type="application/rss+xml")
+
+    items = fetch_pdf_links()
+    for item in items:
+        fe = fg.add_entry()
+        fe.title(item["title"])
+        fe.link(href=item["link"])
+        fe.guid(item["guid"])
+        fe.pubDate(item["pubDate"])
+
+    fg.rss_file("ccs-feed.xml")
+
+if __name__ == "__main__":
+    generate_rss()
