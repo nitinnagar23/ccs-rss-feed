@@ -14,10 +14,20 @@ BASE_CDN = "https://cdn.ccsuniversity.ac.in"
 
 def fetch_notices():
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0",
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": "https://www.ccsuniversity.ac.in/search-news"
     }
+
     response = requests.post(API_URL, json=POST_DATA, headers=headers)
-    data = response.json()
+
+    try:
+        data = response.json()
+    except Exception as e:
+        print("Failed to parse JSON. Status Code:", response.status_code)
+        print("Response Text:", response.text[:500])
+        raise
 
     items = []
 
