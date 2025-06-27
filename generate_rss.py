@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timezone
 from feedgen.feed import FeedGenerator
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
 
 URL = "https://www.ccsuniversity.ac.in/search-news?title=&category=&month=&year=&page=1"
 BASE_URL = "https://www.ccsuniversity.ac.in/"
@@ -14,13 +14,22 @@ async def fetch_notices():
         page = await browser.new_page()
         await page.goto(URL, wait_until="networkidle")
 
-        await page.wait_for_selector(".card-body a")
-
-        links = await page.query_selector_all(".card-body a")
+        try:
+            # Try a generous timeout (60 sec)
+            await page.wait_for_selector(".card-body a", timeout=60000)
+            links = await page.query_selector_all(".card-body a")
+        except PlaywrightTimeout:
+            print("⚠️ Timeout: .card-body a not found")
+            # Log content to debug structure
+            html = await page.content()
+            with open("debug.html", "w", encoding="utf-8") as f:
+                f.write(html)
+            await browser.close()
+            return []
 
         for link in links:
             title = (await link.inner_text()).strip()
-            href = (await link.get_attribute("href")).strip()
+            href = (await link.get_attribute("href") or "").strip()
 
             if not title or not href:
                 continue
