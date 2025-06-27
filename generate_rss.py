@@ -1,48 +1,37 @@
 import requests
+from bs4 import BeautifulSoup
 from feedgen.feed import FeedGenerator
 from datetime import datetime, timezone
 
-API_URL = "https://www.ccsuniversity.ac.in/web/GetNewsList"
-POST_DATA = {
-    "title": "",
-    "category": "",
-    "month": "",
-    "year": "",
-    "page": 1
-}
-BASE_CDN = "https://cdn.ccsuniversity.ac.in"
+URL = "https://www.ccsuniversity.ac.in/search-news?title=&category=&month=&year=&page=1"
+BASE_URL = "https://www.ccsuniversity.ac.in/"
 
 def fetch_notices():
     headers = {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0",
-        "X-Requested-With": "XMLHttpRequest",
-        "Referer": "https://www.ccsuniversity.ac.in/search-news"
+        "User-Agent": "Mozilla/5.0"
     }
 
-    response = requests.post(API_URL, json=POST_DATA, headers=headers)
-
-    try:
-        data = response.json()
-    except Exception as e:
-        print("Failed to parse JSON. Status Code:", response.status_code)
-        print("Response Text:", response.text[:500])
-        raise
+    response = requests.get(URL, headers=headers)
+    soup = BeautifulSoup(response.content, "html.parser")
 
     items = []
 
-    for news_item in data.get("data", []):
-        title = news_item.get("title", "").strip()
-        url = news_item.get("url", "").strip()
-        full_url = url if url.startswith("http") else f"{BASE_CDN}/{url.lstrip('/')}"
-        date_str = news_item.get("uploaded_date", "")
-        pub_date = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
+    # Extract links from visible news cards
+    for a in soup.select(".card-body a[href]"):
+        title = a.get_text(strip=True)
+        link = a["href"]
+
+        if not title or not link:
+            continue
+
+        if not link.startswith("http"):
+            link = BASE_URL + link.lstrip("/")
 
         items.append({
             "title": title,
-            "link": full_url,
-            "guid": full_url,
-            "pubDate": pub_date,
+            "link": link,
+            "guid": link,
+            "pubDate": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000"),
         })
 
     return items
@@ -50,7 +39,7 @@ def fetch_notices():
 def generate_rss():
     fg = FeedGenerator()
     fg.title("CCS University - Latest News")
-    fg.link(href="https://www.ccsuniversity.ac.in/search-news?title=&category=&month=&year=&page=1", rel='alternate')
+    fg.link(href=URL, rel='alternate')
     fg.description("News updates from CCS University Meerut")
     fg.language("en")
     fg.lastBuildDate(datetime.now(timezone.utc))
