@@ -1,42 +1,45 @@
-import requests
-from bs4 import BeautifulSoup
-from feedgen.feed import FeedGenerator
+import asyncio
 from datetime import datetime, timezone
+from feedgen.feed import FeedGenerator
+from playwright.async_api import async_playwright
 
 URL = "https://www.ccsuniversity.ac.in/search-news?title=&category=&month=&year=&page=1"
 BASE_URL = "https://www.ccsuniversity.ac.in/"
 
-def fetch_notices():
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
-
-    response = requests.get(URL, headers=headers)
-    soup = BeautifulSoup(response.content, "html.parser")
-
+async def fetch_notices():
     items = []
 
-    # Extract links from visible news cards
-    for a in soup.select(".card-body a[href]"):
-        title = a.get_text(strip=True)
-        link = a["href"]
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+        await page.goto(URL, wait_until="networkidle")
 
-        if not title or not link:
-            continue
+        await page.wait_for_selector(".card-body a")
 
-        if not link.startswith("http"):
-            link = BASE_URL + link.lstrip("/")
+        links = await page.query_selector_all(".card-body a")
 
-        items.append({
-            "title": title,
-            "link": link,
-            "guid": link,
-            "pubDate": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000"),
-        })
+        for link in links:
+            title = (await link.inner_text()).strip()
+            href = (await link.get_attribute("href")).strip()
+
+            if not title or not href:
+                continue
+
+            if not href.startswith("http"):
+                href = BASE_URL + href.lstrip("/")
+
+            items.append({
+                "title": title,
+                "link": href,
+                "guid": href,
+                "pubDate": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
+            })
+
+        await browser.close()
 
     return items
 
-def generate_rss():
+async def generate_rss():
     fg = FeedGenerator()
     fg.title("CCS University - Latest News")
     fg.link(href=URL, rel='alternate')
@@ -45,7 +48,8 @@ def generate_rss():
     fg.lastBuildDate(datetime.now(timezone.utc))
     fg.link(href="https://nitinnagar23.github.io/ccs-rss-feed/ccs-feed.xml", rel="self", type="application/rss+xml")
 
-    for item in fetch_notices():
+    items = await fetch_notices()
+    for item in items:
         fe = fg.add_entry()
         fe.title(item["title"])
         fe.link(href=item["link"])
@@ -55,4 +59,4 @@ def generate_rss():
     fg.rss_file("ccs-feed.xml")
 
 if __name__ == "__main__":
-    generate_rss()
+    asyncio.run(generate_rss())
