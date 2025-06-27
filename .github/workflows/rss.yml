@@ -24,9 +24,17 @@ jobs:
         run: |
           pip install requests beautifulsoup4 feedgen playwright
           playwright install chromium
+          
       - name: Run Script
         run: python generate_rss.py
-
+      - name: Upload Debug Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+        name: debug-artifacts
+        path: |
+       screenshot.png
+       rendered.html
       - name: Commit and Push
         env:
           TOKEN: ${{ secrets.PAT_TOKEN }}
