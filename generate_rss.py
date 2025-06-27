@@ -1,33 +1,38 @@
 import requests
-from bs4 import BeautifulSoup
 from feedgen.feed import FeedGenerator
 from datetime import datetime, timezone
 
-URL = "https://www.ccsuniversity.ac.in/search-news?title=&category=&month=&year=&page=1"
-BASE_URL = "https://www.ccsuniversity.ac.in/"
+API_URL = "https://www.ccsuniversity.ac.in/web/GetNewsList"
+POST_DATA = {
+    "title": "",
+    "category": "",
+    "month": "",
+    "year": "",
+    "page": 1
+}
+BASE_CDN = "https://cdn.ccsuniversity.ac.in"
 
 def fetch_notices():
-    response = requests.get(URL)
-    soup = BeautifulSoup(response.content, "html.parser")
+    headers = {
+        "Content-Type": "application/json"
+    }
+    response = requests.post(API_URL, json=POST_DATA, headers=headers)
+    data = response.json()
 
     items = []
 
-    # Select links inside the visible cards
-    for a in soup.select(".card-body a[href]"):
-        title = a.get_text(strip=True)
-        link = a["href"]
-
-        if not title or not link:
-            continue
-
-        if not link.startswith("http"):
-            link = BASE_URL + link.lstrip("/")
+    for news_item in data.get("data", []):
+        title = news_item.get("title", "").strip()
+        url = news_item.get("url", "").strip()
+        full_url = url if url.startswith("http") else f"{BASE_CDN}/{url.lstrip('/')}"
+        date_str = news_item.get("uploaded_date", "")
+        pub_date = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
 
         items.append({
             "title": title,
-            "link": link,
-            "pubDate": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000"),
-            "guid": link,
+            "link": full_url,
+            "guid": full_url,
+            "pubDate": pub_date,
         })
 
     return items
@@ -35,7 +40,7 @@ def fetch_notices():
 def generate_rss():
     fg = FeedGenerator()
     fg.title("CCS University - Latest News")
-    fg.link(href=URL, rel='alternate')
+    fg.link(href="https://www.ccsuniversity.ac.in/search-news?title=&category=&month=&year=&page=1", rel='alternate')
     fg.description("News updates from CCS University Meerut")
     fg.language("en")
     fg.lastBuildDate(datetime.now(timezone.utc))
