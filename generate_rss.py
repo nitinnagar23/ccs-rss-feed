@@ -9,30 +9,27 @@ BASE_URL = "https://www.ccsuniversity.ac.in/"
 def fetch_notices():
     response = requests.get(URL)
     soup = BeautifulSoup(response.content, "html.parser")
-    
-    # Find the table containing the links
-    table = soup.find("table")
+
     items = []
 
-    if table:
-        for a in table.find_all("a", href=True):
-            title = a.get_text(strip=True)
-            link = a["href"]
+    # Select links inside the visible cards
+    for a in soup.select(".card-body a[href]"):
+        title = a.get_text(strip=True)
+        link = a["href"]
 
-            # Skip empty titles or links
-            if not title or not link:
-                continue
+        if not title or not link:
+            continue
 
-            # Handle relative URLs just in case
-            if not link.startswith("http"):
-                link = BASE_URL + link.lstrip("/")
+        if not link.startswith("http"):
+            link = BASE_URL + link.lstrip("/")
 
-            items.append({
-                "title": title,
-                "link": link,
-                "pubDate": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000"),
-                "guid": link,
-            })
+        items.append({
+            "title": title,
+            "link": link,
+            "pubDate": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000"),
+            "guid": link,
+        })
+
     return items
 
 def generate_rss():
