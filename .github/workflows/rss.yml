@@ -2,7 +2,7 @@ name: Update RSS Feed
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # Runs every 30 minutes
+    - cron: '*/30 * * * *'  # Every 30 minutes
   workflow_dispatch:
 
 jobs:
@@ -12,8 +12,6 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
-        with:
-          persist-credentials: false  # <- Required for PAT-based push
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -22,7 +20,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install requests beautifulsoup4 feedgen
+          pip install playwright feedgen
+          playwright install chromium
 
       - name: Run Script
         run: python generate_rss.py
