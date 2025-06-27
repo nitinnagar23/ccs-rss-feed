@@ -1,64 +1,41 @@
-import asyncio
-from datetime import datetime, timezone
+import requests
+from bs4 import BeautifulSoup
 from feedgen.feed import FeedGenerator
-from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
+from datetime import datetime, timezone
+import re
 
-URL = "https://www.ccsuniversity.ac.in/search-news?title=&category=&month=&year=&page=1"
-BASE_URL = "https://www.ccsuniversity.ac.in/"
+# Set the directory to scan
+BASE_URL = "https://cdn.ccsuniversity.ac.in/public/pdf/2025/06/"
 
-async def fetch_notices():
-    items = []
+def fetch_pdfs():
+    response = requests.get(BASE_URL, headers={"User-Agent": "Mozilla/5.0"})
+    soup = BeautifulSoup(response.content, "html.parser")
+    links = []
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
-        await page.goto(URL, wait_until="networkidle")
-
-        try:
-            # Try a generous timeout (60 sec)
-            await page.wait_for_selector(".card-body a", timeout=60000)
-            links = await page.query_selector_all(".card-body a")
-        except PlaywrightTimeout:
-            print("⚠️ Timeout: .card-body a not found")
-            # Log content to debug structure
-            html = await page.content()
-            with open("debug.html", "w", encoding="utf-8") as f:
-                f.write(html)
-            await browser.close()
-            return []
-
-        for link in links:
-            title = (await link.inner_text()).strip()
-            href = (await link.get_attribute("href") or "").strip()
-
-            if not title or not href:
-                continue
-
-            if not href.startswith("http"):
-                href = BASE_URL + href.lstrip("/")
-
-            items.append({
+    for a in soup.find_all("a", href=True):
+        href = a['href']
+        if href.lower().endswith(".pdf"):
+            full_url = BASE_URL + href
+            title = href.replace(".pdf", "").replace("%20", " ").replace("_", " ").strip()
+            links.append({
                 "title": title,
-                "link": href,
-                "guid": href,
+                "link": full_url,
+                "guid": full_url,
                 "pubDate": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")
             })
 
-        await browser.close()
+    return links
 
-    return items
-
-async def generate_rss():
+def generate_rss():
     fg = FeedGenerator()
-    fg.title("CCS University - Latest News")
-    fg.link(href=URL, rel='alternate')
-    fg.description("News updates from CCS University Meerut")
+    fg.title("CCSU PDF Notices - June 2025")
+    fg.link(href=BASE_URL, rel='alternate')
+    fg.description("Latest PDF notices from CCSU CDN")
     fg.language("en")
     fg.lastBuildDate(datetime.now(timezone.utc))
     fg.link(href="https://nitinnagar23.github.io/ccs-rss-feed/ccs-feed.xml", rel="self", type="application/rss+xml")
 
-    items = await fetch_notices()
-    for item in items:
+    for item in fetch_pdfs():
         fe = fg.add_entry()
         fe.title(item["title"])
         fe.link(href=item["link"])
@@ -68,4 +45,4 @@ async def generate_rss():
     fg.rss_file("ccs-feed.xml")
 
 if __name__ == "__main__":
-    asyncio.run(generate_rss())
+    generate_rss()
